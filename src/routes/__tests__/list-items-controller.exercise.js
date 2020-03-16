@@ -6,6 +6,7 @@ import {
   buildBook,
   buildListItem,
   buildNext,
+  notes,
 } from 'utils/generate'
 import * as booksDB from '../../db/books'
 import * as listItemsDB from '../../db/list-items'
@@ -215,5 +216,53 @@ test('createListItem returns a 400 error if the user already has a list item for
       },
     ]
   `)
+  expect(res.json).toHaveBeenCalledTimes(1)
+})
+
+test('updateListItem updates an existing list item', async () => {
+  const user = buildUser()
+  const book = buildBook()
+  const listItem = buildListItem({ownerId: user.id, bookId: book.id})
+  const updates = {notes: notes()}
+  const mergedListItemAndUpdates = {...listItem, ...updates}
+  const res = buildRes()
+
+  listItemsDB.update.mockResolvedValueOnce(mergedListItemAndUpdates)
+  booksDB.readById.mockResolvedValueOnce(book)
+
+  const req = buildReq({
+    user,
+    listItem,
+    body: updates,
+  })
+
+  await listItemsController.updateListItem(req, res)
+
+  expect(listItemsDB.update).toHaveBeenCalledWith(listItem.id, updates)
+  expect(listItemsDB.update).toHaveBeenCalledTimes(1)
+  expect(booksDB.readById).toHaveBeenCalledWith(book.id)
+  expect(booksDB.readById).toHaveBeenCalledTimes(1)
+  expect(res.json).toHaveBeenCalledWith({
+    listItem: {...mergedListItemAndUpdates, book},
+  })
+  expect(res.json).toHaveBeenCalledTimes(1)
+})
+
+test('deleteListItem deletes an existing list item', async () => {
+  const user = buildUser()
+  const listItem = buildListItem({ownerId: user.id})
+  const req = buildReq({
+    user,
+    listItem,
+  })
+  const res = buildRes()
+
+  listItemsDB.remove.mockResolvedValueOnce(listItem)
+
+  await listItemsController.deleteListItem(req, res)
+
+  expect(listItemsDB.remove).toHaveBeenCalledWith(listItem.id)
+  expect(listItemsDB.remove).toHaveBeenCalledTimes(1)
+  expect(res.json).toHaveBeenCalledWith({success: true})
   expect(res.json).toHaveBeenCalledTimes(1)
 })

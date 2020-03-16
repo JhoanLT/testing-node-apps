@@ -31,41 +31,39 @@ async function setup() {
 
 test('listItem CRUD', async () => {
   const {testUser, authAPI} = await setup()
-
-  // 🐨 create a book object and insert it into the database
-  // 💰 use generate.buildBook and await booksDB.insert
+  const book = generate.buildBook()
 
   // CREATE
-  // 🐨 create a new list-item by posting to the list-items endpoint with a bookId
-  // 💰 the data you send should be: {bookId: book.id}
+  const cData = await authAPI.post('list-items', {bookId: book.id})
 
-  // 🐨 assert that the data you get back is correct
-  // 💰 it should have an ownerId (testUser.id) and a bookId (book.id)
-  // 💰 if you don't want to assert on all the other properties, you can use
-  // toMatchObject: https://jestjs.io/docs/en/expect#tomatchobjectobject
-
-  // 💰 you might find this useful for the future requests:
-  // const listItemId = cData.listItem.id
-  // const listItemIdUrl = `list-items/${listItemId}`
+  expect(cData.listItem).toMatchObject({
+    ownerId: testUser.id,
+    bookId: book.id,
+  })
+  const listItemId = cData.listItem.id
+  const listItemIdUrl = `list-items/${listItemId}`
 
   // READ
-  // 🐨 make a GET to the `listItemIdUrl`
-  // 🐨 assert that this returns the same thing you got when you created the list item
+  const rData = await authAPI.get(listItemIdUrl)
+  expect(rData.listItem).toEqual(cData.listItem)
 
   // UPDATE
-  // 🐨 make a PUT request to the `listItemIdUrl` with some updates
-  // 💰 const updates = {notes: generate.notes()}
-  // 🐨 assert that this returns the right stuff (should be the same as the READ except with the updated notes)
+  const updates = {notes: generate.notes()}
+  const uResult = await authAPI.put(listItemIdUrl, updates)
+  expect(uResult.listItem).toEqual({...rData.listItem, ...updates})
 
   // DELETE
-  // 🐨 make a DELETE request to the `listItemIdUrl`
-  // 🐨 assert that this returns the right stuff (💰 {success: true})
+  const dData = await authAPI.delete(listItemIdUrl)
+  expect(dData).toEqual({success: true})
+  const error = await authAPI.get(listItemIdUrl).catch(resolve)
+  expect(error.status).toBe(404)
 
-  // 🐨 try to make a GET request to the `listItemIdUrl` again.
-  // 💰 this promise should reject. You can do a try/catch if you want, or you
-  // can use the `resolve` utility from utils/async:
-  // 💰 const error = await authAPI.get(listItemIdUrl).catch(resolve)
-  // 🐨 assert that the status is 404 and the error.data is correct
+  // because the ID is generated, we need to replace it in the error message
+  // so our snapshot remains consistent
+  const idlessMessage = error.data.message.replace(listItemId, 'LIST_ITEM_ID')
+  expect(idlessMessage).toMatchInlineSnapshot(
+    `"No list item was found with the id of LIST_ITEM_ID"`,
+  )
 })
 
 /* eslint no-unused-vars:0 */
